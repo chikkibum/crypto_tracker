@@ -1,50 +1,81 @@
-# React + TypeScript + Vite
+# Crypto Tracker Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A real-time cryptocurrency tracking application built with React, TypeScript and Material-UI.
 
-Currently, two official plugins are available:
+## Approach and Tools Used
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Core Technologies
+- **React + TypeScript**: For type-safe component development
+- **Material UI**: For consistent and responsive UI components
+- **Chart.js**: For interactive price history charts
+- **Axios**: For API requests with custom caching layer
+- **React Router**: For client-side routing
+- **TSS**: For type-safe CSS-in-JS styling
 
-## Expanding the ESLint configuration
+### Architecture Highlights
+- Custom hook `useApiCache` for optimized data fetching with caching
+- Context API for global state management (currency selection)
+- Responsive design with mobile-first approach
+- Component-based architecture with clear separation of concerns
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+## Challenges and Solutions
 
-- Configure the top-level `parserOptions` property like this:
+### 1. API Rate Limiting
+**Challenge**: CoinGecko's free API has strict rate limits that were causing request failures.
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+**Solution**: 
+- Implemented caching layer with `useApiCache` hook
+- Added error handling for rate limit responses
+- Set cache duration to 30 seconds to reduce API calls
+- Added CORS proxy to handle API restrictions
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+## Setup Instructions
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+1. Clone the repository:
+    ```bash
+    git clone https://github.com/yourusername/crypto-tracker.git
+    cd crypto-tracker
+    ```
+
+2. Install dependencies:
+    ```bash
+    npm install
+    ```
+
+3. Create a `.env` file in the root directory.
+
+4. Start the development server:
+    ```bash
+    npm run dev
+    ```
+
+5. Build the application:
+    ```bash
+    npm run build
+    ```
+
+### Notes
+- The application uses CoinGecko's free API, which has rate limits.
+- A CORS proxy is required for API access.
+- Cache duration is set to 30 seconds by default.
+
+## Contributing
+
+1. Fork the repository.
+2. Create your feature branch:
+    ```bash
+    git checkout -b feature/AmazingFeature
+    ```
+3. Commit your changes:
+    ```bash
+    git commit -m 'Add some AmazingFeature'
+    ```
+4. Push to the branch:
+    ```bash
+    git push origin feature/AmazingFeature
+    ```
+5. Open a Pull Request.

@@ -8,6 +8,8 @@ interface CacheItem<T> {
 
 const cache: { [key: string]: CacheItem<any> } = {};
 const CACHE_DURATION = 30000; // 30 seconds
+const RATE_LIMIT_ERROR = "Too many requests - API rate limit exceeded. Please try again later.";
+const CORS_ERROR = "CORS error occurred. Please try again later.";
 
 export function useApiCache<T>(url: string, dependencies: any[] = []) {
   const [data, setData] = useState<T | null>(null);
@@ -39,14 +41,24 @@ export function useApiCache<T>(url: string, dependencies: any[] = []) {
 
         setData(response.data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        if (axios.isAxiosError(err)) {
+          if (err.response?.status === 429) {
+            setError(RATE_LIMIT_ERROR);
+          } else if (err.message.includes('CORS')) {
+            setError(CORS_ERROR);
+          } else {
+            setError(err.message || 'An error occurred');
+          }
+        } else {
+          setError('An unexpected error occurred');
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [url, ...dependencies]);
+  }, [url]);
 
   return { data, loading, error };
 }

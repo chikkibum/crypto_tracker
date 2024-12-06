@@ -7,7 +7,8 @@ import {
   ThemeProvider,
   createTheme,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Typography
 } from "@mui/material";
 import styled from "@emotion/styled";
 import SelectButton from "./SelectButton";
@@ -64,14 +65,26 @@ const CoinInfo = ({ coin }: CoinInfoProps) => {
   const { currency } = CryptoState();
   const [flag, setFlag] = useState(false);
   const chartRef = useRef<ChartJS | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const fetchHistoricData = async () => {
-    const { data } = await axios.get(HistoricalChart(coin.id, days, currency));
-    setFlag(true);
-    setHistoricData(data.prices);
+    try {
+      const { data } = await axios.get(HistoricalChart(coin.id, days, currency));
+      setFlag(true);
+      setHistoricData(data.prices);
+      setError(null);
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          setError("Too many requests - API rate limit exceeded. Please try again later.");
+        } else {
+          setError(err.message || "An error occurred loading chart data");
+        }
+      }
+    }
   };
 
   useEffect(() => {
@@ -94,12 +107,12 @@ const CoinInfo = ({ coin }: CoinInfoProps) => {
   return (
     <ThemeProvider theme={darkTheme}>
       <Container isMobile={isMobile}>
-        {!historicData || flag === false ? (
-          <CircularProgress
-            style={{ color: "gold" }}
-            size={250}
-            thickness={1}
-          />
+        {error ? (
+          <Typography color="error" variant="h6" align="center">
+            {error}
+          </Typography>
+        ) : !historicData || flag === false ? (
+          <CircularProgress style={{ color: "gold" }} size={250} thickness={1} />
         ) : (
           <>
             <Line

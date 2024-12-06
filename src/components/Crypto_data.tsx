@@ -118,9 +118,26 @@ function Crypto_data() {
   if (error) {
     return (
       <Container>
-        <Typography color="error" variant="h5" align="center">
-          {error}
-        </Typography>
+        <Box 
+          sx={{
+            padding: "20px",
+            textAlign: "center",
+            backgroundColor: "rgba(255, 0, 0, 0.1)",
+            borderRadius: "8px",
+            margin: "20px 0"
+          }}
+        >
+          <Typography color="error" variant="h6" gutterBottom>
+            Error Loading Data
+          </Typography>
+          <Typography color="error" variant="body1">
+            {error}
+          </Typography>
+          <Typography color="text.secondary" variant="body2" sx={{ mt: 1 }}>
+            {error.includes('rate limit') && 
+              "CoinGecko's free API has rate limits. Please wait a moment before refreshing."}
+          </Typography>
+        </Box>
       </Container>
     );
   }
