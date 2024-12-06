@@ -118,6 +118,7 @@ function Crypto_data() {
     }
   };
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     fetchCoins();
   }, [currency]);
