@@ -35,11 +35,11 @@ ChartJS.register(
   Legend
 );
 
-interface CoinInfoProps {
-  coin: {
-    id: string;
-  };
-}
+// interface CoinInfoProps {
+//   coin: {
+//     id: string;
+//   };
+// }
 
 const Container = styled.div<{isMobile: boolean}>`
   width: ${props => props.isMobile ? "100%" : "75%"};
@@ -56,15 +56,15 @@ const ButtonContainer = styled.div`
   display: flex;
   margin-top: 20px;
   justify-content: space-around;
-  width: 100%;
+  width: 100%;  
 `;
 
-const CoinInfo = ({ coin }: CoinInfoProps) => {
+const CoinInfo = ({ coin }: { coin: { id: string } }) => {
   const [historicData, setHistoricData] = useState<number[][]>();
   const [days, setDays] = useState(1);
   const { currency } = CryptoState();
   const [flag, setFlag] = useState(false);
-  const chartRef = useRef<ChartJS | null>(null);
+  const chartRef = useRef<ChartJS<'line', number[], unknown> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const theme = useTheme();

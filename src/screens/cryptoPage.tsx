@@ -10,6 +10,7 @@ import { numberWithCommas } from "../components/Crypto_data";
 import { CryptoState } from "../context/Context";
 
 interface Coin {
+  id: string;
   image: {
     large: string;
   };

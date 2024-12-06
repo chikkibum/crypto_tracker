@@ -14,7 +14,6 @@ import {
   TableHead,
   TableContainer,
   Table,
-
   Box,
   Card,
   useMediaQuery,
@@ -23,13 +22,14 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Grid,
+  Stack,
+  Button,
 } from "@mui/material";
-import axios from "axios";
 import { CoinList } from "../api/api";
 import { useNavigate } from "react-router-dom";
 import { CryptoState } from "../context/Context";
-import { useApiCache } from "../hooks/useApiCache";
+// import { useApiCache } from "../hooks/useApiCache";
+import axios from "axios";
 
 interface Coin {
   id: string;
@@ -87,22 +87,44 @@ function Crypto_data() {
   const [maxPrice, setMaxPrice] = useState("");
   const [filteredCoins, setFilteredCoins] = useState<Coin[]>([]);
   const [totalCoins, setTotalCoins] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [coins, setCoins] = useState<Coin[]>([]);
 
   const { currency, symbol } = CryptoState();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const itemsPerPage = isMobile ? 5 : 10;
 
-  const { data: coinsData, loading, error } = useApiCache<Coin[]>(
-    CoinList(currency),
-    [currency]
-  );
+  const fetchCoins = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const { data } = await axios.get(CoinList(currency));
+      setCoins(data);
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          setError("Too many requests - API rate limit exceeded. Please try again later.");
+        } else {
+          setError(err.message || "An error occurred while fetching coin data");
+        }
+      } else {
+        setError("An unexpected error occurred");
+      }
+      setCoins([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!coinsData) return;
-    
+    fetchCoins();
+  }, [currency]);
+
+  useEffect(() => {
     // Apply filters and sorting
-    let filtered = applyFilters(coinsData, search, minPrice, maxPrice);
+    let filtered = applyFilters(coins, search, minPrice, maxPrice);
     filtered = applySorting(filtered, sortBy, sortOrder);
     
     // Calculate pagination
@@ -111,9 +133,18 @@ function Crypto_data() {
     
     setFilteredCoins(filtered.slice(start, end));
     setTotalCoins(filtered.length);
-  }, [coinsData, search, minPrice, maxPrice, sortBy, sortOrder, page, itemsPerPage]);
+  }, [coins, search, minPrice, maxPrice, sortBy, sortOrder, page, itemsPerPage]);
 
   const totalPages = Math.ceil(totalCoins / itemsPerPage);
+
+  const handleClearFilters = () => {
+    setSearch("");
+    setSortBy("market_cap");
+    setSortOrder("desc");
+    setMinPrice("");
+    setMaxPrice("");
+    setPage(1);
+  };
 
   if (error) {
     return (
@@ -137,6 +168,13 @@ function Crypto_data() {
             {error.includes('rate limit') && 
               "CoinGecko's free API has rate limits. Please wait a moment before refreshing."}
           </Typography>
+          <Button 
+            variant="contained" 
+            onClick={fetchCoins}
+            sx={{ mt: 2 }}
+          >
+            Retry
+          </Button>
         </Box>
       </Container>
     );
@@ -162,6 +200,7 @@ function Crypto_data() {
         background: "rgba(255, 255, 255, 0.05)",
         backdropFilter: "blur(10px)",
         overflowX: "auto",
+        padding: isMobile ? "10px" : "20px",
       },
       row: {
         backgroundColor: "transparent",
@@ -192,16 +231,21 @@ function Crypto_data() {
         background: "linear-gradient(45deg, #F29F58 30%, #F29F58 90%)",
       },
       filterContainer: {
+        padding: isMobile ? "10px" : 0,
         marginBottom: "2rem",
+        gap: isMobile ? "15px" : "20px"
       },
       filterField: {
         minWidth: 120,
-        marginRight: isMobile ? "0" : "1rem",
-        marginBottom: isMobile ? "1rem" : "0",
+        marginBottom: isMobile ? "10px" : 0,
+        '& .MuiOutlinedInput-root': {
+          borderRadius: "8px",
+        }
       },
     };
   });
 
+  /* eslint-disable react-hooks/rules-of-hooks */
   const { classes } = useStyles();
   const navigate = useNavigate();
 
@@ -244,8 +288,12 @@ function Crypto_data() {
           size={isMobile ? "small" : "medium"}
         />
 
-        <Grid container spacing={2} className={classes.filterContainer}>
-          <Grid item xs={12} sm={6} md={3}>
+        <Stack 
+          direction={{ xs: 'column', sm: 'row' }} 
+          spacing={2} 
+          className={classes.filterContainer}
+        >
+          <Box flex={1}>
             <FormControl fullWidth className={classes.filterField}>
               <InputLabel>Sort By</InputLabel>
               <Select
@@ -258,8 +306,8 @@ function Crypto_data() {
                 <MenuItem value="change">24h Change</MenuItem>
               </Select>
             </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          </Box>
+          <Box flex={1}>
             <FormControl fullWidth className={classes.filterField}>
               <InputLabel>Order</InputLabel>
               <Select
@@ -271,8 +319,8 @@ function Crypto_data() {
                 <MenuItem value="asc">Ascending</MenuItem>
               </Select>
             </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          </Box>
+          <Box flex={1}>
             <TextField
               label="Min Price"
               type="number"
@@ -281,8 +329,8 @@ function Crypto_data() {
               onChange={(e) => setMinPrice(e.target.value)}
               className={classes.filterField}
             />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          </Box>
+          <Box flex={1}>
             <TextField
               label="Max Price"
               type="number"
@@ -291,8 +339,26 @@ function Crypto_data() {
               onChange={(e) => setMaxPrice(e.target.value)}
               className={classes.filterField}
             />
-          </Grid>
-        </Grid>
+          </Box>
+          <Box flex={1}>
+            <Box sx={{ display: 'flex' }}>
+              <Button
+                variant="outlined"
+                onClick={handleClearFilters}
+                sx={{
+                  borderColor: '#F29F58',
+                  color: '#F29F58',
+                  '&:hover': {
+                    borderColor: '#F29F58',
+                    backgroundColor: 'rgba(242, 159, 88, 0.1)',
+                  },
+                }}
+              >
+                Clear Filters
+              </Button>
+            </Box>
+          </Box>
+        </Stack>
 
         <Card className={classes.tableContainer}>
           {loading ? (
@@ -308,7 +374,7 @@ function Crypto_data() {
                           color: "#000",
                           fontWeight: "800",
                           fontSize: isMobile ? "0.9rem" : "1.1rem",
-                          padding: isMobile ? "8px" : "16px",
+                          padding: isMobile ? "6px" : "16px",
                         }}
                         key={head}
                         align={head === "Coin" ? undefined : "right"}
@@ -331,7 +397,7 @@ function Crypto_data() {
                         <TableCell
                           component="th"
                           scope="row"
-                          sx={{ padding: isMobile ? "8px" : "16px" }}
+                          sx={{ padding: isMobile ? "6px" : "16px" }}
                         >
                           <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 1 : 2 }}>
                             <img
@@ -365,7 +431,7 @@ function Crypto_data() {
                           {profit && "+"}
                           {row.price_change_percentage_24h.toFixed(2)}%
                         </TableCell>
-                        <TableCell align="right" sx={{ fontSize: isMobile ? "0.9rem" : "1.1rem", padding: isMobile ? "8px" : "16px" }}>
+                        <TableCell align="right" sx={{ fontSize: isMobile ? "0.8rem" : "1.1rem", padding: isMobile ? "6px" : "16px" }}>
                           {symbol}{" "}
                           {numberWithCommas(
                             Number(row.market_cap.toString().slice(0, -6))

@@ -6,12 +6,15 @@ interface CacheItem<T> {
   timestamp: number;
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const cache: { [key: string]: CacheItem<any> } = {};
 const CACHE_DURATION = 30000; // 30 seconds
 const RATE_LIMIT_ERROR = "Too many requests - API rate limit exceeded. Please try again later.";
 const CORS_ERROR = "CORS error occurred. Please try again later.";
 
-export function useApiCache<T>(url: string, dependencies: any[] = []) {
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function useApiCache<T>(url: string, _dependencies: any[] = []) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

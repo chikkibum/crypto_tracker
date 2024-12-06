@@ -5,7 +5,7 @@ import { makeStyles } from 'tss-react/mui';
 import CryptoContext from './context/Context'
 import { Outlet } from 'react-router-dom';
 
-const useStyles = makeStyles()((theme) => {
+const useStyles = makeStyles()(() => {
   return {
     app: {
       backgroundColor: '#14161a',

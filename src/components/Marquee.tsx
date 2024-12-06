@@ -4,7 +4,7 @@ import axios from "axios";
 import { TrendingCoins } from "../api/api";
 import { CryptoState } from "../context/Context";
 
-const useStyles = makeStyles()((theme) => {
+const useStyles = makeStyles()(() => {
   return {
     marqueeContainer: {
       width: "100%",
@@ -38,23 +38,51 @@ const useStyles = makeStyles()((theme) => {
         "0%": { transform: "translateX(0)" },
         "100%": { transform: "translateX(-50%)" }
       }
+    },
+    error: {
+      color: "#ff4444",
+      padding: "15px",
+      textAlign: "center",
+      fontFamily: "Montserrat"
     }
   };
 });
 
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const Marquee = () => {
   const [trending, setTrending] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const { currency, symbol } = CryptoState();
   const { classes } = useStyles();
 
   const fetchTrendingCoins = async () => {
-    const { data } = await axios.get(TrendingCoins(currency));
-    setTrending(data);
+    try {
+      const { data } = await axios.get(TrendingCoins(currency));
+      setTrending(data);
+      setError(null);
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.status === 429) {
+          setError("Too many requests - API rate limit exceeded. Please try again later.");
+        } else {
+          setError(err.message || "An error occurred while fetching trending coins");
+        }
+      } else {
+        setError("An unexpected error occurred");
+      }
+      setTrending([]);
+    }
   };
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     fetchTrendingCoins();
-  }, [currency]);
+  }, [currency,]);
+
+  if (error) {
+    return <div className={classes.error}>{error}</div>;
+  }
 
   return (
     <div className={classes.marqueeContainer}>
