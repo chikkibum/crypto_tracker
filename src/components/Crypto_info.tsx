@@ -1,58 +1,72 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { HistoricalChart } from "../api/api";
 import { Line } from "react-chartjs-2";
 import {
   CircularProgress,
-  createTheme,
   ThemeProvider,
+  createTheme,
+  useMediaQuery,
+  useTheme
 } from "@mui/material";
-import { makeStyles } from "tss-react/mui";
+import styled from "@emotion/styled";
 import SelectButton from "./SelectButton";
 import { chartDays } from "../api/data";
 import { CryptoState } from "../context/Context";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
 
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
-interface CoinProps {
+interface CoinInfoProps {
   coin: {
     id: string;
   };
 }
 
-interface ChartDayData {
-  value: number;
-  label: string;
-}
+const Container = styled.div<{isMobile: boolean}>`
+  width: ${props => props.isMobile ? "100%" : "75%"};
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-top: ${props => props.isMobile ? 0 : "25px"};
+  padding: ${props => props.isMobile ? "20px" : "40px"};
+  padding-top: ${props => props.isMobile && 0};
+`;
 
-const CoinInfo: React.FC<CoinProps> = ({ coin }) => {
-  const [historicData, setHistoricData] = useState<[number, number][]>([]);
+const ButtonContainer = styled.div`
+  display: flex;
+  margin-top: 20px;
+  justify-content: space-around;
+  width: 100%;
+`;
+
+const CoinInfo = ({ coin }: CoinInfoProps) => {
+  const [historicData, setHistoricData] = useState<number[][]>();
   const [days, setDays] = useState(1);
   const { currency } = CryptoState();
   const [flag, setFlag] = useState(false);
+  const chartRef = useRef<ChartJS | null>(null);
 
-  const useStyles = makeStyles()((theme) => {
-    return {
-        container: {
-            width: "75%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            marginTop: 25,
-            padding: 40,
-            [theme.breakpoints.down("md")]: {
-                width: "100%",
-                marginTop: 0,
-                padding: 20,
-                paddingTop: 0,
-      },
-    },
-  };
-  });
-
- 
-
-  const { classes } = useStyles();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const fetchHistoricData = async () => {
     const { data } = await axios.get(HistoricalChart(coin.id, days, currency));
@@ -61,6 +75,9 @@ const CoinInfo: React.FC<CoinProps> = ({ coin }) => {
   };
 
   useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.destroy();
+    }
     fetchHistoricData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
@@ -76,7 +93,7 @@ const CoinInfo: React.FC<CoinProps> = ({ coin }) => {
 
   return (
     <ThemeProvider theme={darkTheme}>
-      <div className={classes.container}>
+      <Container isMobile={isMobile}>
         {!historicData || flag === false ? (
           <CircularProgress
             style={{ color: "gold" }}
@@ -86,6 +103,7 @@ const CoinInfo: React.FC<CoinProps> = ({ coin }) => {
         ) : (
           <>
             <Line
+              ref={chartRef}
               data={{
                 labels: historicData.map((coin) => {
                   const date = new Date(coin[0]);
@@ -95,32 +113,33 @@ const CoinInfo: React.FC<CoinProps> = ({ coin }) => {
                       : `${date.getHours()}:${date.getMinutes()} AM`;
                   return days === 1 ? time : date.toLocaleDateString();
                 }),
-
                 datasets: [
                   {
                     data: historicData.map((coin) => coin[1]),
                     label: `Price ( Past ${days} Days ) in ${currency}`,
-                    borderColor: "#EEBC1D",
+                    borderColor: "orange",
                   },
                 ],
               }}
               options={{
+                responsive: true,
                 elements: {
                   point: {
                     radius: 1,
                   },
                 },
+                scales: {
+                  x: {
+                    display: true,
+                  },
+                  y: {
+                    display: true
+                  }
+                }
               }}
             />
-            <div
-              style={{
-                display: "flex",
-                marginTop: 20,
-                justifyContent: "space-around",
-                width: "100%",
-              }}
-            >
-              {chartDays.map((day: ChartDayData) => (
+            <ButtonContainer>
+              {chartDays.map((day) => (
                 <SelectButton
                   key={day.value}
                   onClick={() => {
@@ -132,10 +151,10 @@ const CoinInfo: React.FC<CoinProps> = ({ coin }) => {
                   {day.label}
                 </SelectButton>
               ))}
-            </div>
+            </ButtonContainer>
           </>
         )}
-      </div>
+      </Container>
     </ThemeProvider>
   );
 };

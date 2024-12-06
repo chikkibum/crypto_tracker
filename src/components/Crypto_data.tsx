@@ -14,16 +14,22 @@ import {
   TableHead,
   TableContainer,
   Table,
-  Paper,
+
   Box,
   Card,
   useMediaQuery,
   useTheme,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Grid,
 } from "@mui/material";
 import axios from "axios";
 import { CoinList } from "../api/api";
 import { useNavigate } from "react-router-dom";
 import { CryptoState } from "../context/Context";
+import { useApiCache } from "../hooks/useApiCache";
 
 interface Coin {
   id: string;
@@ -39,15 +45,85 @@ export function numberWithCommas(x: number): string {
   return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+const applyFilters = (coins: Coin[], search: string, minPrice: string, maxPrice: string) => {
+  return coins.filter((coin) => {
+    const matchesSearch = 
+      coin.name.toLowerCase().includes(search.toLowerCase()) ||
+      coin.symbol.toLowerCase().includes(search.toLowerCase());
+    
+    const matchesMinPrice = !minPrice || coin.current_price >= Number(minPrice);
+    const matchesMaxPrice = !maxPrice || coin.current_price <= Number(maxPrice);
+
+    return matchesSearch && matchesMinPrice && matchesMaxPrice;
+  });
+};
+
+const applySorting = (coins: Coin[], sortBy: string, sortOrder: string) => {
+  return [...coins].sort((a, b) => {
+    let comparison = 0;
+    switch (sortBy) {
+      case "market_cap":
+        comparison = a.market_cap - b.market_cap;
+        break;
+      case "price":
+        comparison = a.current_price - b.current_price;
+        break;
+      case "change":
+        comparison = a.price_change_percentage_24h - b.price_change_percentage_24h;
+        break;
+      default:
+        comparison = 0;
+    }
+    return sortOrder === "desc" ? -comparison : comparison;
+  });
+};
+
 function Crypto_data() {
-  const [coins, setCoins] = useState<Coin[]>([]);
-  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState("market_cap");
+  const [sortOrder, setSortOrder] = useState("desc");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [filteredCoins, setFilteredCoins] = useState<Coin[]>([]);
+  const [totalCoins, setTotalCoins] = useState(0);
 
   const { currency, symbol } = CryptoState();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const itemsPerPage = isMobile ? 5 : 10;
+
+  const { data: coinsData, loading, error } = useApiCache<Coin[]>(
+    CoinList(currency),
+    [currency]
+  );
+
+  useEffect(() => {
+    if (!coinsData) return;
+    
+    // Apply filters and sorting
+    let filtered = applyFilters(coinsData, search, minPrice, maxPrice);
+    filtered = applySorting(filtered, sortBy, sortOrder);
+    
+    // Calculate pagination
+    const start = (page - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    
+    setFilteredCoins(filtered.slice(start, end));
+    setTotalCoins(filtered.length);
+  }, [coinsData, search, minPrice, maxPrice, sortBy, sortOrder, page, itemsPerPage]);
+
+  const totalPages = Math.ceil(totalCoins / itemsPerPage);
+
+  if (error) {
+    return (
+      <Container>
+        <Typography color="error" variant="h5" align="center">
+          {error}
+        </Typography>
+      </Container>
+    );
+  }
 
   const useStyles = makeStyles()(() => {
     return {
@@ -96,7 +172,15 @@ function Crypto_data() {
         objectFit: "cover",
       },
       tableHead: {
-        background: "linear-gradient(45deg, #EEBC1D 30%, #FFD700 90%)",
+        background: "linear-gradient(45deg, #F29F58 30%, #F29F58 90%)",
+      },
+      filterContainer: {
+        marginBottom: "2rem",
+      },
+      filterField: {
+        minWidth: 120,
+        marginRight: isMobile ? "0" : "1rem",
+        marginBottom: isMobile ? "1rem" : "0",
       },
     };
   });
@@ -107,7 +191,7 @@ function Crypto_data() {
   const darkTheme = createTheme({
     palette: {
       primary: {
-        main: "#EEBC1D",
+        main: "#F29F58",
       },
       mode: "dark",
     },
@@ -115,26 +199,6 @@ function Crypto_data() {
       fontFamily: "Montserrat, sans-serif",
     },
   });
-
-  const fetchCoins = async () => {
-    setLoading(true);
-    const { data } = await axios.get(CoinList(currency));
-    setCoins(data);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchCoins();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currency]);
-
-  const handleSearch = () => {
-    return coins.filter(
-      (coin) =>
-        coin.name.toLowerCase().includes(search.toLowerCase()) ||
-        coin.symbol.toLowerCase().includes(search.toLowerCase())
-    );
-  };
 
   return (
     <ThemeProvider theme={darkTheme}>
@@ -144,10 +208,11 @@ function Crypto_data() {
           sx={{
             fontWeight: "700",
             marginBottom: "2rem",
-            background: "linear-gradient(45deg, orange 30%, orange 90%)",
+            background: "linear-gradient(45deg, #F29F58 30%, #F29F58 90%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             textAlign: isMobile ? "center" : "left",
+            fontFamily: "Montserrat, sans-serif",
           }}
         >
           Cryptocurrency Prices 
@@ -162,9 +227,59 @@ function Crypto_data() {
           size={isMobile ? "small" : "medium"}
         />
 
+        <Grid container spacing={2} className={classes.filterContainer}>
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth className={classes.filterField}>
+              <InputLabel>Sort By</InputLabel>
+              <Select
+                value={sortBy}
+                label="Sort By"
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <MenuItem value="market_cap">Market Cap</MenuItem>
+                <MenuItem value="price">Price</MenuItem>
+                <MenuItem value="change">24h Change</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth className={classes.filterField}>
+              <InputLabel>Order</InputLabel>
+              <Select
+                value={sortOrder}
+                label="Order"
+                onChange={(e) => setSortOrder(e.target.value)}
+              >
+                <MenuItem value="desc">Descending</MenuItem>
+                <MenuItem value="asc">Ascending</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              label="Min Price"
+              type="number"
+              fullWidth
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              className={classes.filterField}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              label="Max Price"
+              type="number"
+              fullWidth
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              className={classes.filterField}
+            />
+          </Grid>
+        </Grid>
+
         <Card className={classes.tableContainer}>
           {loading ? (
-            <LinearProgress sx={{ backgroundColor: "#EEBC1D", height: "3px" }} />
+            <LinearProgress sx={{ backgroundColor: "orange", height: "3px" }} />
           ) : (
             <TableContainer>
               <Table size={isMobile ? "small" : "medium"}>
@@ -188,63 +303,61 @@ function Crypto_data() {
                 </TableHead>
 
                 <TableBody>
-                  {handleSearch()
-                    .slice((page - 1) * (isMobile ? 5 : 10), (page - 1) * (isMobile ? 5 : 10) + (isMobile ? 5 : 10))
-                    .map((row) => {
-                      const profit = row.price_change_percentage_24h > 0;
-                      return (
-                        <TableRow
-                          onClick={() => navigate(`/coins/${row.id}`)}
-                          className={classes.row}
-                          key={row.name}
+                  {filteredCoins.map((row) => {
+                    const profit = row.price_change_percentage_24h > 0;
+                    return (
+                      <TableRow
+                        onClick={() => navigate(`/crypto/${row.id}`)}
+                        className={classes.row}
+                        key={row.name}
+                      >
+                        <TableCell
+                          component="th"
+                          scope="row"
+                          sx={{ padding: isMobile ? "8px" : "16px" }}
                         >
-                          <TableCell
-                            component="th"
-                            scope="row"
-                            sx={{ padding: isMobile ? "8px" : "16px" }}
-                          >
-                            <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 1 : 2 }}>
-                              <img
-                                src={row.image}
-                                alt={row.name}
-                                className={classes.coinImage}
-                              />
-                              <Box>
-                                <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ fontWeight: "600" }}>
-                                  {row.symbol.toUpperCase()}
-                                </Typography>
-                                <Typography variant="body2" sx={{ color: "text.secondary", display: isMobile ? "none" : "block" }}>
-                                  {row.name}
-                                </Typography>
-                              </Box>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: isMobile ? 1 : 2 }}>
+                            <img
+                              src={row.image}
+                              alt={row.name}
+                              className={classes.coinImage}
+                            />
+                            <Box>
+                              <Typography variant={isMobile ? "subtitle1" : "h6"} sx={{ fontWeight: "600" }}>
+                                {row.symbol.toUpperCase()}
+                              </Typography>
+                              <Typography variant="body2" sx={{ color: "text.secondary", display: isMobile ? "none" : "block" }}>
+                                {row.name}
+                              </Typography>
                             </Box>
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontSize: isMobile ? "0.9rem" : "1.1rem", padding: isMobile ? "8px" : "16px" }}>
-                            {symbol}{" "}
-                            {numberWithCommas(row.current_price)}
-                          </TableCell>
-                          <TableCell
-                            align="right"
-                            sx={{
-                              color: profit ? "rgb(14, 203, 129)" : "red",
-                              fontWeight: 600,
-                              fontSize: isMobile ? "0.9rem" : "1.1rem",
-                              padding: isMobile ? "8px" : "16px",
-                            }}
-                          >
-                            {profit && "+"}
-                            {row.price_change_percentage_24h.toFixed(2)}%
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontSize: isMobile ? "0.9rem" : "1.1rem", padding: isMobile ? "8px" : "16px" }}>
-                            {symbol}{" "}
-                            {numberWithCommas(
-                              Number(row.market_cap.toString().slice(0, -6))
-                            )}
-                            M
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                          </Box>
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontSize: isMobile ? "0.9rem" : "1.1rem", padding: isMobile ? "8px" : "16px" }}>
+                          {symbol}{" "}
+                          {numberWithCommas(row.current_price)}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            color: profit ? "rgb(14, 203, 129)" : "red",
+                            fontWeight: 600,
+                            fontSize: isMobile ? "0.9rem" : "1.1rem",
+                            padding: isMobile ? "8px" : "16px",
+                          }}
+                        >
+                          {profit && "+"}
+                          {row.price_change_percentage_24h.toFixed(2)}%
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontSize: isMobile ? "0.9rem" : "1.1rem", padding: isMobile ? "8px" : "16px" }}>
+                          {symbol}{" "}
+                          {numberWithCommas(
+                            Number(row.market_cap.toString().slice(0, -6))
+                          )}
+                          M
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -252,15 +365,20 @@ function Crypto_data() {
         </Card>
 
         <Box sx={{ mt: 4, display: "flex", justifyContent: "center" }}>
-          <Pagination
-            count={Number((handleSearch()?.length / (isMobile ? 5 : 10)).toFixed(0))}
-            classes={{ ul: classes.pagination }}
-            onChange={(_: unknown, value: number) => {
-              setPage(value);
-              window.scroll(0, 450);
-            }}
-            size={isMobile ? "medium" : "large"}
-          />
+            <Pagination
+              count={totalPages}
+              style={{
+                padding: 20,
+                width: "100%",
+                display: "flex",
+                justifyContent: "center",
+              }}
+              classes={{ ul: classes.pagination }}
+              onChange={(_, value) => {
+                setPage(value);
+                window.scroll(0, 450);
+              }}
+            />
         </Box>
       </Container>
     </ThemeProvider>
