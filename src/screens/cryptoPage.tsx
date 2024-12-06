@@ -3,7 +3,7 @@ import { styled } from '@mui/material/styles';
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import ReactHtmlParser from "react-html-parser";
+// import ReactHtmlParser from "react-html-parser";
 import CoinInfo from "../components/Crypto_info";
 import { SingleCoin } from "../api/api";
 import { numberWithCommas } from "../components/Crypto_data";
@@ -115,7 +115,7 @@ const CryptoPage = () => {
           {coin?.name}
         </Heading>
         <Description variant="subtitle1">
-          {ReactHtmlParser(coin?.description.en.split(". ")[0])}.
+          {/* {ReactHtmlParser(coin?.description.en.split(". ")[0])}. */}
         </Description>
         <MarketData>
           <span style={{ display: "flex" }}>
